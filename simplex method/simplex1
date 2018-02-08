@@ -1,0 +1,162 @@
+class Problem:  
+    def __init__(self):  
+        self.obj = 0  
+        self.coMatrix = []  
+        self.b = []  
+        self.c = []  
+  
+    def pivot(self, basic, l, e):  
+        # the l-th line  
+        self.b[l] /= self.coMatrix[e][l]  
+        origin = self.coMatrix[e][l]  
+        for i in range(len(self.coMatrix)):  
+            self.coMatrix[i][l] /= origin  
+        # the other lines  
+        for i in range(len(self.b)):  
+            if i != l:  
+                self.b[i] = self.b[i] - self.b[l] * self.coMatrix[e][i]  
+        for i in range(len(self.b)):  
+            if i != l:  
+                origin = self.coMatrix[e][i]  
+                for j in range(len(self.coMatrix)):  
+                    self.coMatrix[j][i] = self.coMatrix[j][i] - origin * self.coMatrix[j][l]  
+        origin = self.c[e]  
+        for i in range(len(self.coMatrix)):  
+            self.c[i] = self.c[i] - self.coMatrix[i][l] * origin  
+        self.obj = self.obj - self.b[l] * origin  
+        basic[l] = e  
+  
+    def clone(self, another):  
+        self.obj = another.obj  
+        for i in another.b:  
+            self.b.append(i)  
+        for i in another.c:  
+            self.c.append(i)  
+        for v in another.coMatrix:  
+            newv = []  
+            for i in v:  
+                newv.append(i)  
+            self.coMatrix.append(newv)  
+  
+  
+basic = []  
+problem = Problem()  
+  
+  
+def readProblem(filename):  
+    with open(filename)as f:  
+        var_num = int(f.readline())  
+        constrait_num = int(f.readline())  
+        matrix = [([0] * var_num) for i in range(constrait_num)]  
+        for i in range(constrait_num):  
+            line = f.readline()  
+            tokens = line.split(' ')  
+            for j in range(var_num):  
+                matrix[i][j] = float(tokens[j])  
+            problem.b.append(float(tokens[-1]))  
+        for i in range(var_num):  
+            var = []  
+            for j in range(constrait_num):  
+                var.append(matrix[j][i])  
+            problem.coMatrix.append(var)  
+        line = f.readline()  
+        tokens = line.split(' ')  
+        for i in range(var_num):  
+            problem.c.append(float(tokens[i]))  
+  
+  
+def getMinCIndex(c):  
+    min, minIndex = 1, 0  
+    for i in range(len(c)):  
+        if c[i] < 0 and c[i] < min:  
+            min = c[i]  
+            minIndex = i  
+    if min > 0:  
+        return -1  
+    else:  
+        return minIndex  
+  
+  
+def getLamdaVector(evector):  
+    ld = []  
+    for i in range(len(evector)):  
+        ld.append(evector[i])  
+    return ld  
+  
+  
+def simplex(basic, problem):  
+    minCIndex = getMinCIndex(problem.c)  
+    while minCIndex != -1:  
+        ld = getLamdaVector(problem.coMatrix[minCIndex])  
+        # find the l line  
+        l, min = -1, 10000000000  
+        for i in range(len(problem.b)):  
+            if ld[i] > 0:  
+                if problem.b[i] / ld[i] < min:  
+                    l = i  
+                    min = problem.b[i] / ld[i]  
+        if l == -1:  
+            return False  
+        problem.pivot(basic, l, minCIndex)  
+        minCIndex = getMinCIndex(problem.c)  
+    return True  
+  
+  
+def initialSimplex(basic, problem):  
+    min, minIndex = 1000000000, -1  
+    for i in range(len(problem.b)):  
+        if problem.b[i] < min:  
+            min = problem.b[i]  
+            minIndex = i  
+    for i in range(len(problem.b)):  
+        basic.append(i+len(problem.b))  
+    if min >= 0:  
+        return True  
+    else:  
+        originC = problem.c  
+        newC = []  
+        for i in range(len(problem.c)):  
+            newC.append(0)  
+        newC.append(1)  
+        problem.c = newC  
+        x0 = []  
+        for i in range(len(problem.b)):  
+            x0.append(-1)  
+        problem.coMatrix.append(x0)  
+        problem.pivot(basic, minIndex, -1)  
+        res = simplex(basic, problem)  
+        if res == False or problem.obj != 0:  
+            return False  
+        else:  
+            problem.c = originC  
+            problem.coMatrix.pop()  
+            # Gaussian row operation  
+            counter = 0  
+            for i in basic:  
+                if problem.c[i] != 0:  
+                    origin = problem.c[i]  
+                    for j in range(len(problem.c)):  
+                        problem.c[j] -= problem.coMatrix[j][counter] * origin  
+                    problem.obj -= problem.b[counter] * origin  
+                counter += 1  
+            return True  
+  
+  
+filename = raw_input('please input the problem description file: ')  
+readProblem(filename)  
+if initialSimplex(basic, problem):  
+    res = simplex(basic, problem)  
+    if res:  
+        print 'the optimal obj is %.2f' % problem.obj  
+        index = ['0.00'] * len(problem.coMatrix)  
+        counter = 0  
+        for i in basic:  
+            index[i] = '%.2f' % problem.b[counter]  
+            counter += 1  
+        print 'the solution is {%s}' % ' '.join(index)  
+    else:  
+        print 'no feasible solution'  
+else:  
+    print 'no feasible solution'  
+  
+raw_input('please input any key to quit.') 
