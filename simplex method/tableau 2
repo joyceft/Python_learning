@@ -1,0 +1,218 @@
+# -*- coding: utf-8 -*-
+
+def ShowTableau(tableu):
+    print "**********************************"
+    for row in tableau:
+        print row
+    print "**********************************"
+    return
+
+
+# show the original initial tableau
+
+def GetTableau(c, sts, b):
+    # for i in range(7,10):   #only st7-st9 are in the form of ≥
+    #       st7=st7*(-1)    #multiply(-1) in both sides, to get form of ≤
+    #      st8=st8*(-1)
+    #     st9=st9*(-1)
+    #    b[i]=b[i]*(-1)
+
+    # assume b>=0 so if there is any b[i]<0,
+    # make sure to enter it positive by (-1*res[i]) and (-1*b[i]) for all i
+    tableau = []
+    m = len(sts)
+    n = len(c)
+    # m is the number of rows, n is the number of columns
+    c.insert(0, 0.0)
+    # add 0 in index 0(first one)
+    artificial = []
+    z = [0.0]
+    for i in range(n):
+        z.append(0.0)
+    for i in range(m):
+        artificial.append(0.0)
+        z.append(1.0)
+    c.extend(artificial)
+    tableau.append(c)
+    tableau.append(z)
+
+    i = 0
+    for st in sts:
+        st.insert(0, b[i])     # for each constraint row, add b[i] as the first element
+        st.extend(artificial)  # for each constraint row, add artificial variables at th end of the row
+        st[n + 1 + i] = 1.0    # set the coefficient value of (n+1+i)th element as 1
+        tableau.append(st)
+        i=i+1
+    for xi in tableau:
+        if (i > 1):
+            j = 0
+            for xij in xi:
+                tableau[1][j] = tableau[1][j] - xij
+                j = j + 1
+        i = i + 1
+    return tableau  # get the PHASE 1 iteration 1
+
+
+def PivotOn(tableau, row, col):
+    j = 0
+    PivotPoint = tableau[row][col]
+    for x in tableau[row]:
+        tableau[row][j] = tableau[row][j] / PivotPoint  # 对于选中的那个x，那一行其他都除以x，变为=1
+        j = j + 1  # 把选中pivot那行标准化
+    i = 0
+    for xi in tableau:
+        if i != row:
+            ratio = xi[col]
+            j = 0
+            for xij in xi:  # 初等行变换
+                xij = xij - ratio * tableau[row][j]
+                tableau[i][j] = xij
+                j = j + 1
+        i = i + 1
+    return tableau
+
+
+# assuming tablue in standard form with basis formed in last m columns
+
+def Phase1Simplex(tableau):
+    NegativeValue = -1
+    Opt = False
+    Unbounded = False
+    n = len(tableau[0])
+    m = len(tableau) - 2
+
+    while ((not Opt) and (not Unbounded)):
+        min = 0.0
+        PivotCol = j = 1
+        while (j < (n - m)):
+            cj = tableau[1][j]
+            if (cj < min):
+                min = cj
+                PivotCol = j
+            j = j + 1
+        if min == 0.0:
+            Opt = True
+            continue
+        PivotRow = i = 0
+        minValue = NegativeValue
+        for xi in tableau:
+            if (i > 1):
+                xij = xi[PivotCol]
+                if xij > 0:
+                    Value = (xi[0] / xij)
+                    if (Value < minValue) or (minValue == NegativeValue):
+                        minValue = Value
+                        PivotRow = i
+            i = i + 1
+        if minValue == NegativeValue:
+            Unbounded = True
+            continue
+        tableau = PivotOn(tableau, PivotRow, PivotCol)
+    return tableau
+
+
+def simplex(tableau):
+    NegativeValue = -1
+    Opt = False
+    Unbounded = False
+    n = len(tableau[0])
+    m = len(tableau) - 1
+
+    while ((not Opt) and (not Unbounded)):
+        min = 0.0
+        PivotCol = j = 0
+        while (j < (n - m)):
+            cj = tableau[0][j]
+            if (cj < min) and (j > 0):
+                min = cj
+                PivotCol = j
+            j = j + 1
+        if min == 0.0:
+            Opt = True
+            continue
+        PivotRow = i = 0
+        minValue = NegativeValue
+        for xi in tableau:
+            if (i > 0):
+                xij = xi[PivotCol]
+                if xij > 0:
+                    Value = (xi[0] / xij)
+                    if (Value < minValue) or (minValue == NegativeValue):
+                        minValue = Value
+                        PivotRow = i
+            i = i + 1
+        if minValue == NegativeValue:
+            Unbounded = True
+            continue
+        tableau = PivotOn(tableau, PivotRow, PivotCol)
+    return tableau
+
+
+def ArtificialBasisOut(tableau):
+    n = len(tableau[0])
+    j = n - 1
+    basis = True
+    while (j > 0):
+        found = False
+        i = -1
+        row = 0
+        for xi in tableau:
+            i = i + 1
+            if (xi[j] == 1):
+                if (found):
+                    basis = False
+                    continue
+                elif (i > 1):
+                    row = i
+                    found = True
+            elif (xi[0] != 0):
+                basis = False
+                continue
+            if (basis and found):
+                if (j >= n):
+                    tableau = PivotOn(tableau, row, j)
+                else:
+                    return tableau
+            j = j - 1
+        return tableau
+
+
+def Phase2Simplex(tableau):
+    infeasible = False
+    tableau = Phase1Simplex(tableau)
+    z = tableau[1][0]
+    if (z > 0):
+        infeasible = True
+        print "infeasible"
+    else:
+        tableau = ArtificialBasisOut(tableau)
+        m = len(tableau) - 2
+        n = len(tableau[0])
+        n = n - m
+        tableau.pop(1)
+        i = 0
+        while (i < len(tableau)):
+            tableau[i] = tableau[i][:n]
+            i = i + 1
+        tableau = simplex(tableau)
+    return tableau
+
+
+c = [1.0, 1.0, 1.0, 1.0, 1.0, ]
+
+st1 = [3.0, 2.0, 1.0, 0.0, 0.0]
+st2 = [5.0, 1.0, 1.0, 1.0, 0.0]
+st3 = [2.0, 5.0, 1.0, 0.0, 1.0]
+
+b = [1.0, 3.0, 4.0]
+
+sts = []
+sts.append(st1)
+sts.append(st2)
+sts.append(st3)
+
+tableau = GetTableau(c, sts, b)
+ShowTableau(tableau)
+tableau = Phase2Simplex(tableau)
+ShowTableau(tableau)
+print 'The Optimal is = {}'.format(-tableau[0][0])
